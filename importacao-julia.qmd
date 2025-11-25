@@ -1,0 +1,180 @@
+---
+title: "Importação de Dados em Julia"
+subtitle: "Com comparação a R e Python"
+author: "Pedro Tilhe (254672), Luiz Felipe da Silva (241625), Kaleo Campos Gomes de Sá Ecles (256333)"
+format:
+  revealjs:
+    slide-number: true
+    incremental: true
+    transition: fade
+engine: julia
+---
+
+## Objetivos da Apresentação
+
+- Mostrar como **criar** e **importar** dados em Julia (CSV, TXT, XLSX e arquivo grande).
+- Fazer um **benchmark** de leitura de um CSV grande (100.000 linhas).
+- Discutir, de forma rápida, a comparação com R e Python em termos de desempenho e uso.
+
+---
+
+## Pacotes Utilizados em Julia
+
+```{julia}
+#| echo: true
+#| message: false
+#| warning: false
+
+import Pkg
+Pkg.add(["CSV", "DataFrames", "XLSX", "BenchmarkTools"])
+
+using CSV, DataFrames, XLSX, Random, BenchmarkTools
+println("Pacotes carregados com sucesso!")
+```
+
+---
+
+## Criando Bases de Exemplo (1/2)
+
+```{julia}
+Random.seed!(123)
+
+df_peq = DataFrame(
+    id    = 1:10,
+    nome  = ["Ana","Bruno","Carla","Diego","Eva",
+             "Fernando","Gabi","Hugo","Iris","João"],
+    idade   = rand(18:60, 10),
+    salario = rand(2500.0:50.0:9000.0, 10)
+)
+
+first(df_peq, 5)
+```
+
+---
+
+## Criando Bases de Exemplo (2/2)
+
+```{julia}
+df_tab = DataFrame(
+    produto = ["A","B","C","D","E"],
+    preco   = rand(20.0:1.0:100.0, 5),
+    estoque = rand(1:200, 5)
+)
+
+N = 100_000
+df_grande = DataFrame(
+    id         = 1:N,
+    categoria  = rand(["A","B","C","D"], N),
+    valor      = rand(1000.0:0.1:5000.0, N),
+    quantidade = rand(1:100, N)
+)
+
+XLSX.writetable(
+    "dados.xlsx",
+    collect(eachcol(df_peq)),
+    String.(names(df_peq));
+    sheetname = "Planilha1",
+    overwrite = true
+)
+
+CSV.write("dados_pequenos.csv", df_peq)
+CSV.write("dados_tab.txt", df_tab; delim = '\t')
+CSV.write("dados_grandes.csv", df_grande)
+
+(size(df_tab), size(df_grande))
+```
+
+---
+
+## Importando os Arquivos em Julia — Leitura
+
+```{julia}
+#| echo: false
+#| message: false
+#| warning: false
+
+df_csv = CSV.read("dados_pequenos.csv", DataFrame)
+df_txt = CSV.read("dados_tab.txt", DataFrame; delim = '\t')
+df_big = CSV.read("dados_grandes.csv", DataFrame)
+
+tbl = XLSX.readtable("dados.xlsx", "Planilha1")
+df_xlsx = DataFrame(tbl)
+```
+
+---
+
+## CSV pequeno
+
+```{julia}
+println("CSV pequeno (primeiras 5 linhas):")
+first(df_csv, 5)
+```
+
+---
+
+## TXT com tabulação
+
+```{julia}
+println("TXT com tabulação (primeiras 5 linhas):")
+first(df_txt, 5)
+```
+
+---
+
+## CSV grande e Planilha Excel
+
+```{julia}
+println("Tamanho do CSV grande:")
+display(size(df_big))
+
+println("\nPlanilha Excel (primeiras 5 linhas):")
+first(df_xlsx, 5)
+```
+
+---
+
+## Benchmark de Leitura do CSV Grande
+
+```{julia}
+using BenchmarkTools
+
+CSV.read("dados_grandes.csv", DataFrame);  # aquece
+
+@btime CSV.read("dados_grandes.csv", DataFrame);
+```
+
+---
+
+## Interpretação dos Resultados em Julia
+
+- Arquivo com **100.000 linhas** e 4 colunas.
+- `CSV.read` retorna diretamente um `DataFrame`.
+- `@btime` mostra:
+  - tempo mínimo;
+  - média aproximada;
+  - alocação de memória.
+- Tempo esperado: **dezenas de milissegundos**.
+
+---
+
+## Comparação com R e Python
+
+- **R (data.table::fread)**: extremamente rápido (poucos ms).
+- **R (readr::read_csv)**: rápido, mas um pouco mais lento.
+- **Julia (CSV.read)**: desempenho competitivo e consistente.
+- **Python (pandas.read_csv)**: costuma ser mais lento neste caso.
+
+> Aqui vocês comentam os números que mediram nas três linguagens.
+
+---
+
+## Conclusões
+
+- Julia é muito eficiente para manipulação e importação de dados.
+- Permite trabalhar bem com:
+  - CSV, TXT, XLSX;
+  - arquivos grandes;
+  - workflows com performance.
+- R é o mais rápido para importação com `fread`.
+- Python é versátil, porém mais lento para arquivos grandes.
+- Julia entrega uma combinação forte de **velocidade + código limpo**.
